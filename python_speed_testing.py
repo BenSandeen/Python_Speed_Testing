@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 # Ben Sandeen
 # This is a little file I started to benchmark different ways of doing equivalent
 # things in Python (almost exclusively inside loops).  It has grown over the past
@@ -18,8 +20,14 @@ import math
 from math import log
 from math import *
 import operator
+from multiprocessing import *
+from operator import *
+
+# try to import these, but still runs if they can't be imported
+# used primarily to allow pypy interpreter to run this script
 try:
 	import numpy as np
+	from joblib import Parallel, delayed
 except:
 	pass
 
@@ -35,16 +43,17 @@ except:
 # measure process time
 # """
 # ##########################################
+# Different methods of looping
 
-# # 5TH (~1/3 as fast as other three)
+# # 2ND ~20% faster than 3RD
 # t0 = time.clock()
 # for i in range(1000000):
-# 	random.gauss(0,5)
+#         np.random.normal(0,5)
 # print time.clock() - t0
 
-#2ND
+# #1ST ~5% faster than 2ND
 # t0 = time.clock()
-# for i in range(1000000):
+# for i in xrange(1000000):
 #         np.random.normal(0,5)
 # print time.clock() - t0
 
@@ -56,19 +65,8 @@ except:
 # 	i += 1
 # print time.clock() - t0
 
-# #1ST
-# t0 = time.clock()
-# for i in xrange(1000000):
-#         np.random.normal(0,5)
-# print time.clock() - t0
-
-# #4TH (~1/3 as fast as fastest 3)
-# t0 = time.clock()
-# for i in xrange(1000000):
-#     random.gauss(0,5)
-# print time.clock() - t0
-
 ##########################################
+# String concatenation methods
 
 # #2ND
 # t0 = time.clock()
@@ -76,13 +74,14 @@ except:
 #     ''.join('test')
 # print time.clock() - t0
 
-# #1ST ~25 faster than 2ND
+# #1ST ~15X faster than 2ND
 # t0 = time.clock()
 # for i in xrange(1000000):
 #     ''+'test'
 # print time.clock() - t0
 
 ##########################################
+# Localizing a library reference
 
 # #2ND
 # t0 = time.clock()
@@ -98,60 +97,63 @@ except:
 # print time.clock() - t0
 
 ##########################################
+# Different methods of exponentiation
 
-# #3RD ~17% faster than 4TH
+# #3RD ~11% faster than 4TH
 # t0 = time.clock()
 # for i in xrange(10000):
 # 	for i in xrange(100):
 # 	    x = math.exp(i*3)
 # print time.clock() - t0
 
-# #2ND ~10% faster than 3RD
+# #2ND ~12% faster than 3RD
 # t0 = time.clock()
 # e = math.exp(1)
 # for i in xrange(10000):
 # 	for i in xrange(100):
-# 	    x = e**(i*3)
+# 	    y = e**(i*3)
 # print time.clock() - t0
 
-# #4TH
+# #TIED for 4TH 
 # t0 = time.clock()
 # e = math.exp(1)
 # for i in xrange(10000):
 # 	for i in xrange(100):
-# 	    x = pow(e,(i*3))
+# 	    z = pow(e,(i*3))
 # print time.clock() - t0
 
-# #1ST ~3% faster than 2ND
+# #1ST ~5% faster than 2ND
 # t0 = time.clock()
 # e = math.exp
 # for i in xrange(10000):
 # 	for i in xrange(100):
-# 	    x = e(i*3)
+# 	    a = e(i*3)
+# print time.clock() - t0
+
+# #TIED for 4TH 
+# t0 =time.clock()
+# for i in xrange(10000):
+# 	for i in xrange(100):
+# 		b = math.exp(i + i + i)
 # print time.clock() - t0
 
 ##########################################
+# Numpy array vs. list comprehensions and loops for exponentiation
 
-# #2ND ~10% faster than 3RD
-# t0 = time.clock()
-# e = math.exp(1)
-# L = [pow(e,(i/10000)) for i in xrange(1000000)]
-# print time.clock() - t0
-
-# #1ST ~27% faster than 2ND
+# #1ST ~20% faster than 2ND
 # t0 = time.clock()
 # e = math.exp(1)
 # L = [e**(i/10000) for i in xrange(1000000)]
 # print time.clock() - t0
 
-# #4TH
+# #2ND ~8% faster than 3RD
 # t0 = time.clock()
 # e = math.exp(1)
 # #L = np.zeros(1000000)
 # L = np.array([e**(i/10000) for i in xrange(1000000)])
 # print time.clock() - t0
 
-# #3RD ~2% faster than 4TH
+# #3RD
 # t0 = time.clock()
 # e = math.exp(1)
 # L = np.zeros(1000000)
@@ -160,8 +162,9 @@ except:
 # print time.clock() - t0
 
 ##########################################
+# Python's math.log vs. np.log (both localized) on single integer at a time
 
-# #1ST (by a factor of ~13)
+# #1ST (by a factor of ~8)
 # from math import log
 # t0 = time.clock()
 # for i in xrange(1,1000000):
@@ -169,40 +172,51 @@ except:
 # print time.clock() - t0
 
 # #2ND
+# from numpy import log as nplog
 # t0 = time.clock()
 # for i in xrange(1,1000000):
-#     np.log(i)#1000)
+#     nplog(i)#1000)
 # print time.clock() - t0
 
 ##########################################
+# Takes advantage of numpy's vectorization
 
-# #2ND ~4X faster than 3RD
+# #2ND
+# from math import log
 # t0 = time.clock()
 # for i in xrange(1,1000000):
-#     math.sqrt(i)
+#     log(i)#1000)
 # print time.clock() - t0
 
-# #1ST ~32% faster than 2ND
+# #1ST (by a factor of ~2)
+# from numpy import log as nplog
+# t0 = time.clock()
+# nplog(range(1,1000000))
+# print time.clock() - t0
+
+##########################################
+# math.sqrt vs. Numpy.sqrt (includes vectorized example)
+
+# #3RD
 # sq = math.sqrt
 # t0 = time.clock()
 # for i in xrange(1,1000000):
 #     sq(i)
 # print time.clock() - t0
 
-# #4TH
+# #1ST ~16% faster than 2ND
 # t0 = time.clock()
-# for i in xrange(1,1000000):
-#     np.sqrt(i)
+# np.sqrt(range(1,1000000))
 # print time.clock() - t0
 
-# #3RD ~6% faster than 4TH
+# #2ND ~3% faster than 4TH
 # s=np.sqrt
 # t0 = time.clock()
-# for i in xrange(1,1000000):
-#     s(i)
+# s(xrange(1,1000000))
 # print time.clock() - t0
 
 #############################################
+# Lambdas vs. other methods of exponentiation
 
 # #3RD ~10% faster than 4TH
 # t0 = time.clock()
@@ -210,13 +224,13 @@ except:
 #     i**2
 # print time.clock() - t0
 
-# #1ST ~18% faster than 2ND
+# #4TH ~1% faster than 5TH
 # t0 = time.clock()
 # for i in xrange(1,1000000):
 #     pow(i,2)
 # print time.clock() - t0
 
-# #4TH
+# #5TH
 # t0 = time.clock()
 # f = lambda x: x**2
 # for i in xrange(1,1000000):
@@ -230,7 +244,14 @@ except:
 #     f(i)
 # print time.clock() - t0
 
+# #1ST ~28% faster than 2ND
+# t0 = time.clock()
+# for i in xrange(1,1000000):
+#     i*i
+# print time.clock() - t0
+
 #########################################
+# while true vs while 1
 
 # #2nd
 # t0 = time.clock()
@@ -253,6 +274,7 @@ except:
 # print time.clock() - t0
 
 #########################################
+# basic set vs basic list: appending and popping
 
 # #1st BY A FACTOR OF ABOUT 170!!!!!!!!!!!!!!!!!!!!
 # t0 = time.clock()
@@ -283,6 +305,7 @@ except:
 # print time.clock() - t0
 
 ##################################
+# Localizing append() method
 
 #2ND
 # t0 = time.clock()
@@ -300,8 +323,9 @@ except:
 # print time.clock() - t0
 
 ####################################
+# different structures of if statements
 
-# #4TH
+# #3RD
 # t0 = time.clock()
 # for i in xrange(100000):
 #     for Nchars in xrange(10):
@@ -315,7 +339,7 @@ except:
 #           Nticks=6
 # print time.clock() - t0
 
-# #TIE 2ND ~10% faster than 4TH
+# #2ND ~8% faster than 3RD
 # t0 = time.clock()
 # for i in xrange(100000):
 #     for Nchars in xrange(10):
@@ -331,20 +355,7 @@ except:
 #             Nticks=6
 # print time.clock() - t0
 
-# #TIE 2ND ~10% faster than 4TH
-# t0 = time.clock()
-# for i in xrange(100000):
-#     for Nchars in xrange(10):
-#         if Nchars>8:
-#             Nticks=3
-#         else:
-# 	        if Nchars>5:
-# 	        	Nticks=4
-# 	        elif Nchars>4:
-# 	        	Nticks=6
-# print time.clock() - t0
-
-# #1ST ~1% faster than 2ND
+# #1ST ~3% faster than 2ND
 # t0 = time.clock()
 # for i in xrange(100000):
 #     for Nchars in xrange(10):
@@ -358,8 +369,9 @@ except:
 # print time.clock() - t0
 
 #################################
+# different ways of multiplying, including using intermediary variables to hold values
 
-# #4TH
+# #2ND ~3% faster than 3RD
 # t0 = time.clock()
 # a = 1
 # b = 2
@@ -368,7 +380,7 @@ except:
 #     d = c * a
 # print(time.clock() - t0)
 
-# #3RD ~2% faster than 4TH
+# #3RD ~3% faster than 4TH
 # t0 = time.clock()
 # a = 1
 # b = 2
@@ -377,7 +389,7 @@ except:
 #     d = d * a
 # print(time.clock() - t0)
 
-# #2ND ~2% faster than 3RD
+# #4TH
 # t0 = time.clock()
 # a = 1
 # b = 2
@@ -490,6 +502,13 @@ except:
 # a = 2
 # for i in xrange(1000000):
 #     d = a + a
+# print(time.clock() - t0)
+
+# # 7TH about 30% slower than 6TH
+# t0 = time.clock()
+# a = 2
+# for i in xrange(1000000):
+#     d = lshift(a,1)
 # print(time.clock() - t0)
 
 ################################
@@ -1047,7 +1066,166 @@ except:
 
 #################################
 
+# #1ST ~90X faster than 2ND
+# t0 = time.clock()
+# L = []
+# for i in xrange(10000):
+# 	L.append(i)	
+# print(time.clock() - t0)
+
+# #2ND
+# t0 = time.clock()
+# N = np.array([])
+# for i in xrange(10000):
+# 	N = np.append(N,i)
+# print(time.clock() - t0)
 
 #################################
+
+# # 1ST >100X faster
+# t0 = time.clock()
+# [math.sqrt(i ** 2) for i in xrange(10000)]
+# print(time.clock() - t0)
+
+# # 2ND
+# t0 = time.clock()
+# Parallel(n_jobs=11)(delayed(sqrt)(i ** 2) for i in xrange(10000))
+# print(time.clock() - t0)
+
+#################################
+
+# def f(x):
+# 	return x**2 - 1777.0/x + x
+# # 2ND
+# t0 = time.clock() # doesn't accurately report time for the parallel code, but the
+# 				  # parallel is still noticeably faster
+# if __name__ == '__main__':
+#     # pool = Pool(processes=4)              # start 4 worker processes
+#     # second_results = pool.map(f, xrange(1,1000000))
+#     second_results = Pool(processes=2).map(f, range(1,1000000))
+# # print(cpu_count())
+# print(time.clock() - t0)
+
+# # 1ST
+# t0 = time.clock()
+# first_results = map(f, range(1,1000000))
+# print(time.clock() - t0)
+# print(first_results == second_results)
+
+#################################
+
+# # 2ND ~25% faster than 3RD
+# t0 = time.clock()
+# for i in xrange(1000000):
+# 	if i%2 == 0:
+# 		i>>1
+# print(time.clock() - t0)
+
+# # 1ST ~3% faster than 2ND
+# t0 = time.clock()
+# for i in xrange(1000000):
+# 	if i%2 == 0:
+# 		i/2
+# print(time.clock() - t0)
+
+# # 3RD
+# t0 = time.clock()
+# for i in xrange(1000000):
+# 	if i%2 == 0:
+# 		rshift(i,1)
+# print(time.clock() - t0)
+
+#################################
+
+# from multiprocessing import Process, Value, Array
+#
+# def f(n, a):
+#     n.value = 3.1415927
+#     for i in range(len(a)):
+#         a[i] = -a[i]
+#
+# if __name__ == '__main__':
+#     num = Value('d', 0.0)
+#     arr = Array('i', range(6000000))
+#
+#     # p = Process(target=f, args=(num,arr))
+#     p = []
+#     num_procs = 4
+#     print(num_procs)
+#     for i in xrange(num_procs):
+#     	p.append(Process(target=f, args=(num, arr[int(i*len(arr)/num_procs):int((i+1)*len(arr)/num_procs)])))
+#     # p = Process(target=f, args=(num, arr[:len(arr)/2]))
+#     # p2 = Process(target=f, args=(num, arr[len(arr)/2:]))
+#     # p.start()
+#     # p2.start()
+#     # p.join()
+#     # p2.join()
+#     for i in p:
+#     	i.start()
+#     for i in p:
+#     	i.join()
+#
+#     print num.value
+#    # print arr[:]
+
+#################################
+
+# # no significant difference found between any of these
+
+# def sq(x):
+# 	return x**2
+
+# t0 = time.clock()
+# L = [sq(i) for i in range(1,1000000)]
+# print(time.clock() - t0)
+
+# t0 = time.clock()
+# new_L = map(sq,range(1,1000000))
+# print(time.clock() - t0)
+
+# f = lambda x:x**2
+# t0 = time.clock()
+# newer_L = map(f, range(1,1000000)) 
+# print(time.clock() - t0)
+
+# t0 = time.clock()
+# newest_L = map(lambda x:x**2, range(1,1000000)) 
+# print(time.clock() - t0)
+
+# t0 = time.clock()
+# newest_L = f(np.arange(1,1000000,dtype='int64')) # must specify dtype to be
+# 												 # 64-bit, as 32-bit overflows
+# print(time.clock() - t0)
+
+# however, be careful with using np.arange without specifying the data type,
+# as it overflows 
+# print(L[:100000] == newest_L[:100000]) # last many elements are not equal
+# print(L[:10000] == newest_L[:10000]) # all elements are equal
+# print(L[-1]) # correct value
+# print(newest_L[-1]) # number overflowed into negatives
+
+#################################
+
+# Set = set()
+# List = list()
+
+# #2ND
+# t0 = time.clock()
+# for i in xrange(10000000):
+# 	Set.add(i)
+# print(time.clock() - t0)
+
+# #1ST ~15% faster than 2ND
+# t0 = time.clock()
+# for i in xrange(10000000):
+# 	List.append(i)
+# print(time.clock() - t0)
+
+#################################
+
+
+
+#################################
+
 print(time.clock() - totalTime)
 
